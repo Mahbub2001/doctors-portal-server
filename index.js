@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const port = process.env.PORT || 5000;
@@ -7,7 +8,7 @@ const port = process.env.PORT || 5000;
 const app = express();
 app.use(cors());
 app.use(express.json());
-require("dotenv").config();
+
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.nxaiqcz.mongodb.net/?retryWrites=true&w=majority`;
 
@@ -68,48 +69,57 @@ app.get("/appointmentOptions", async (req, res) => {
 // Advance,
 
 app.get("/v2/appointmentOptions", async (req, res) => {
-  const date = req.query.date;
-  const options = await appointmentOptionCollection.aggregate([
-    {
-      $lookup: {
-        from: "bookings",
-        localField: "name",
-        foreignField: "treatment",
-        pipeline: [
-          {
-            $match:{
-              $expr:{  
-                $eq:[ '$appointmentDate',date ]
-              }
-            }
-          }
-        ],
-        as: "booked",
-      },
-    },
-    {
-      $project:{
-         name: 1,
-         slots:1,
-         booked:{
-          $map:{
-            input: '$booked',
-            as:'book',
-            in:'$$book.slot'
-          }
-         }
-      }
-    },
-    {
-      $project:{
-        name:1,
-        slots:{
-          $setDifference:['$slots','$booked']
-        }
-      }
-    }
-  ]).toArray();
-  res.send(options);
+  try {
+    const date = req.query.date;
+    const options = await appointmentOptionCollection
+      .aggregate([
+        {
+          $lookup: {
+            from: "bookings",
+            localField: "name",
+            foreignField: "treatment",
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $eq: ["$appointmentDate", date],
+                  },
+                },
+              },
+            ],
+            as: "booked",
+          },
+        },
+        {
+          $project: {
+            name: 1,
+            slots: 1,
+            booked: {
+              $map: {
+                input: "$booked",
+                as: "book",
+                in: "$$book.slot",
+              },
+            },
+          },
+        },
+        {
+          $project: {
+            name: 1,
+            slots: {
+              $setDifference: ["$slots", "$booked"],
+            },
+          },
+        },
+      ])
+      .toArray();
+    res.send(options);
+  } catch (error) {
+    res.send({
+      success: false,
+      error: error.message,
+    });
+  }
 });
 
 /*
