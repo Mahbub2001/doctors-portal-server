@@ -9,7 +9,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.nxaiqcz.mongodb.net/?retryWrites=true&w=majority`;
 
 const client = new MongoClient(uri, {
@@ -32,8 +31,8 @@ dbConnect();
 const appointmentOptionCollection = client
   .db("doctorsPortal")
   .collection("appointmentOptions");
-
 const bookingsCollection = client.db("doctorsPortal").collection("bookings");
+const usersCollection = client.db("doctorsPortal").collection("users");
 
 app.get("/appointmentOptions", async (req, res) => {
   try {
@@ -133,9 +132,35 @@ app.patch('/bookings/:id)
 app.delete('/bookings/:id)
 */
 
+app.get('/bookings',async(req,res)=>{
+  try{
+    const email = req.query.email;
+    const query = {email:email}
+    const bookings = await bookingsCollection.find(query).toArray();
+    res.send(bookings);
+  }
+  catch(error){
+    console.log(error);
+  }
+})
+
+
 app.post("/bookings", async (req, res) => {
   try {
     const booking = req.body;
+    const query = {
+      appointmentDate: booking.appointmentDate,
+      email: booking.email,
+      treatment: booking.treatment,
+    };
+
+    const alreadyBooked = await bookingsCollection.find(query).toArray();
+
+    if (alreadyBooked.length) {
+      const message = `You already have a booking on ${booking.appointmentDate}`;
+      return res.send({ acknowledged: false, message });
+    }
+
     const result = await bookingsCollection.insertOne(booking);
     res.send(result);
   } catch (error) {
@@ -145,6 +170,17 @@ app.post("/bookings", async (req, res) => {
     });
   }
 });
+
+app.post('/users',async(req,res)=>{
+  try{
+    const user = req.body;
+    const result = await usersCollection.insertOne(user);
+    res.send(result);
+  }
+  catch(error){
+    console.log(error);
+  }
+})
 
 app.get("/", async (req, res) => {
   res.send("doctors portal server is running ");
