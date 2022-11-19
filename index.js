@@ -50,6 +50,20 @@ const appointmentOptionCollection = client
   .collection("appointmentOptions");
 const bookingsCollection = client.db("doctorsPortal").collection("bookings");
 const usersCollection = client.db("doctorsPortal").collection("users");
+const doctorsCollection = client.db("doctorsPortal").collection("doctors");
+
+//make sure you use verifyAdmin after verifyJWT
+const verifyAdmin = async (req, res, next) => {
+  // console.log('inside',req.decoded.email);
+  const decodedEmail = req.decoded.email;
+  const query = { email: decodedEmail };
+  const user = await usersCollection.findOne(query);
+
+  if (user?.role !== "admin") {
+    return res.status(403).send({ message: "forbidden access" });
+  }
+  next();
+};
 
 app.get("/appointmentOptions", async (req, res) => {
   try {
@@ -138,6 +152,19 @@ app.get("/v2/appointmentOptions", async (req, res) => {
   }
 });
 
+app.get("/appointmentSpecialty", async (req, res) => {
+  try {
+    const query = {};
+    const result = await appointmentOptionCollection
+      .find(query)
+      .project({ name: 1 })
+      .toArray();
+    res.send(result);
+  } catch (error) {
+    console.log(error);
+  }
+});
+
 /*
 API NAMING CONVENTION 
 
@@ -210,12 +237,12 @@ app.post("/bookings", async (req, res) => {
   }
 });
 
-app.get('/users/admin/:email', async (req, res) => {
+app.get("/users/admin/:email", async (req, res) => {
   const email = req.params.email;
-  const query = { email }
+  const query = { email };
   const user = await usersCollection.findOne(query);
-  res.send({ isAdmin: user?.role === 'admin' });
-})
+  res.send({ isAdmin: user?.role === "admin" });
+});
 
 app.post("/users", async (req, res) => {
   try {
@@ -227,7 +254,7 @@ app.post("/users", async (req, res) => {
   }
 });
 
-app.put("/users/admin/:id", async (req, res) => {
+app.put("/users/admin/:id", verifyJWT, verifyAdmin, async (req, res) => {
   const id = req.params.id;
   const filter = { _id: ObjectId(id) };
   const options = { upsert: true };
@@ -238,6 +265,29 @@ app.put("/users/admin/:id", async (req, res) => {
   };
   const result = await usersCollection.updateOne(filter, updatedDoc, options);
   res.send(result);
+});
+
+app.post("/doctors", verifyJWT, verifyAdmin, async (req, res) => {
+  const doctor = req.body;
+  const result = await doctorsCollection.insertOne(doctor);
+  res.send(result);
+});
+
+app.get("/doctors", verifyJWT, verifyAdmin, async (req, res) => {
+  const query = {};
+  const doctors = await doctorsCollection.find(query).toArray();
+  res.send(doctors);
+});
+
+app.delete("/doctors/:id", verifyJWT, verifyAdmin, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const filter = { _id: ObjectId(id) };
+    const result = await doctorsCollection.deleteOne(filter);
+    res.send(result);
+  } catch (error) {
+    console.log(error);
+  }
 });
 
 app.get("/", async (req, res) => {
