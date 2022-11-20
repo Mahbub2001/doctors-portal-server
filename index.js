@@ -123,6 +123,7 @@ app.get("/v2/appointmentOptions", async (req, res) => {
         {
           $project: {
             name: 1,
+            price:1,
             slots: 1,
             booked: {
               $map: {
@@ -136,6 +137,7 @@ app.get("/v2/appointmentOptions", async (req, res) => {
         {
           $project: {
             name: 1,
+            price:1,
             slots: {
               $setDifference: ["$slots", "$booked"],
             },
@@ -237,6 +239,13 @@ app.post("/bookings", async (req, res) => {
   }
 });
 
+app.get('/bookings/:id', async (req, res) => {
+  const id = req.params.id;
+  const query = { _id: ObjectId(id) };
+  const booking = await bookingsCollection.findOne(query);
+  res.send(booking);
+})
+
 app.get("/users/admin/:email", async (req, res) => {
   const email = req.params.email;
   const query = { email };
@@ -266,6 +275,19 @@ app.put("/users/admin/:id", verifyJWT, verifyAdmin, async (req, res) => {
   const result = await usersCollection.updateOne(filter, updatedDoc, options);
   res.send(result);
 });
+
+//temporary to update price field
+// app.get('/addPrice',async(req,res)=>{
+//   const filter = {}
+//   const options = {upsert:true};
+//   const updatedDoc = {
+//     $set: {
+//       price: 99,
+//     },
+//   };
+//   const result= await appointmentOptionCollection.updateMany(filter,updatedDoc,options);
+//   res.send(result);
+// })
 
 app.post("/doctors", verifyJWT, verifyAdmin, async (req, res) => {
   const doctor = req.body;
